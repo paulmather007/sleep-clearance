@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Meta tags to make it behave like a native iOS app -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#f9fafb">
+    <title>Sleep Clearance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-gray-900 select-none antialiased flex flex-col">
+
+    <!-- Header -->
+    <div class="bg-gray-900 text-white p-6 pt-12 text-center pb-6">
+        <h1 class="text-xl font-bold tracking-wide uppercase">Sleep Clearance</h1>
+        <p class="text-gray-400 text-sm mt-1">Bedtime: 11:30 PM | Cutoff: 8:30 PM</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-grow flex flex-col justify-center px-4 -mt-8">
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden w-full max-w-sm mx-auto">
+            
+            <!-- Status Display -->
+            <div id="statusPanel" class="p-8 text-center border-b-8 transition-colors duration-300">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Can I have a drink?</h2>
+                <div id="verdictText" class="text-7xl font-black transition-colors duration-300">
+                    --
+                </div>
+                
+                <!-- Dynamic feedback text -->
+                <div id="feedbackContainer" class="mt-4 min-h-[60px] flex items-center justify-center">
+                    <!-- Content injected by JS -->
+                </div>
+            </div>
+
+            <!-- Action Area -->
+            <div class="p-6 flex flex-col items-center">
+                <button
+                    id="logDrinkBtn"
+                    class="w-full font-bold py-5 px-6 rounded-xl shadow-md transition-all active:scale-95 text-xl"
+                >
+                    + Log 1 Drink
+                </button>
+
+                <div class="mt-8 w-full space-y-4">
+                    <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                        <span class="text-gray-500 text-sm uppercase tracking-wide">Queue Clears</span>
+                        <span id="queueTimeText" class="font-bold text-gray-800">--:--</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button id="resetBtn" class="mt-8 text-sm text-gray-400 font-medium p-4 mx-auto block active:text-gray-900">
+            Reset Data for Today
+        </button>
+    </div>
+
+    <script>
+        // Constants
+        const BEDTIME_HOUR = 23;
+        const BEDTIME_MINUTE = 30;
+        const CUTOFF_HOUR = 20;
+        const CUTOFF_MINUTE = 30;
+        
+        // NAME OF YOUR APPLE SHORTCUT HERE
+        const SHORTCUT_NAME = "Drink";
+
+        // State persistence
+        let systemZeroTime = localStorage.getItem('sleepTracker_zeroTime') 
+            ? new Date(localStorage.getItem('sleepTracker_zeroTime')) 
+            : null;
+
+        // DOM Elements
+        const statusPanel = document.getElementById('statusPanel');
+        const verdictText = document.getElementById('verdictText');
+        const feedbackContainer = document.getElementById('feedbackContainer');
+        const logDrinkBtn = document.getElementById('logDrinkBtn');
+        const queueTimeText = document.getElementById('queueTimeText');
+        const resetBtn = document.getElementById('resetBtn');
+
+        function formatTime(dateObj) {
+            if (!dateObj) return "Empty Now";
+            return dateObj.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        }
+
+        function updateUI() {
+            const now = new Date();
+            
+            // Set targets for today
+            const bedtime = new Date(now);
+            bedtime.setHours(BEDTIME_HOUR, BEDTIME_MINUTE, 0, 0);
+
+            const cutoffTime = new Date(now);
+            cutoffTime.setHours(CUTOFF_HOUR, CUTOFF_MINUTE, 0, 0);
+
+            // Determine base time
+            let baseTime = systemZeroTime;
+            if (!baseTime || baseTime <= now) {
+                baseTime = now;
+            }
+
+            // Calculate Budget
+            let drinkBudget = 0;
+            if (now < cutoffTime) {
+                drinkBudget = Math.floor((bedtime - baseTime) / (60 * 60 * 1000));
+            }
+            drinkBudget = Math.max(0, drinkBudget);
+
+            // Logic gates
+            let canHaveDrink = true;
+            let reason = "";
+
+            if (now >= cutoffTime) {
+                canHaveDrink = false;
+                reason = "Past 8:30 PM hard cutoff.";
+            } else if (drinkBudget <= 0) {
+                canHaveDrink = false;
+                reason = "Budget empty. Another drink disrupts sleep.";
+            }
+
+            // Update Verdict
+            verdictText.textContent = canHaveDrink ? 'YES' : 'NO';
+            
+            // Update Colors
+            if (canHaveDrink) {
+                statusPanel.className = 'p-8 text-center border-b-8 border-green-500 bg-green-50';
+                verdictText.className = 'text-7xl font-black text-green-600';
+                logDrinkBtn.className = 'w-full font-bold py-5 px-6 rounded-xl shadow-md transition-all active:scale-95 text-xl bg-gray-900 text-white';
+                logDrinkBtn.disabled = false;
+                logDrinkBtn.textContent = '+ Log 1 Drink';
+            } else {
+                statusPanel.className = 'p-8 text-center border-b-8 border-red-500 bg-red-50';
+                verdictText.className = 'text-7xl font-black text-red-600';
+                logDrinkBtn.className = 'w-full font-bold py-5 px-6 rounded-xl shadow-none transition-all text-xl bg-gray-200 text-gray-400 cursor-not-allowed';
+                logDrinkBtn.disabled = true;
+                logDrinkBtn.textContent = 'Cut Off';
+            }
+
+            // Update Feedback Text
+            if (canHaveDrink && drinkBudget <= 5) {
+                feedbackContainer.innerHTML = `<p class="font-bold text-lg text-green-800">Overhead: ${drinkBudget} ${drinkBudget === 1 ? 'drink' : 'drinks'}</p>`;
+            } else if (!canHaveDrink) {
+                feedbackContainer.innerHTML = `<p class="font-bold text-lg text-red-800">${reason}</p>`;
+            } else {
+                feedbackContainer.innerHTML = ''; // Clear if budget > 5
+            }
+
+            // Update Queue Time
+            const isClearanceInPast = systemZeroTime && systemZeroTime <= now;
+            queueTimeText.textContent = formatTime(isClearanceInPast ? null : systemZeroTime);
+            queueTimeText.className = isClearanceInPast ? 'font-bold text-gray-400' : 'font-bold text-blue-600';
+        }
+
+        // Event Listeners
+        logDrinkBtn.addEventListener('click', () => {
+            const now = new Date();
+            let baseTime = systemZeroTime;
+            if (!baseTime || baseTime <= now) {
+                baseTime = now;
+            }
+            // Add 1 hour to the queue
+            systemZeroTime = new Date(baseTime.getTime() + 60 * 60 * 1000);
+            localStorage.setItem('sleepTracker_zeroTime', systemZeroTime.toISOString());
+            updateUI();
+            
+            // --- NEW: Trigger Apple Shortcut ---
+            // This attempts to open the Shortcuts app and run the specific shortcut
+            window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(SHORTCUT_NAME)}`;
+        });
+
+        resetBtn.addEventListener('click', () => {
+            if(confirm("Are you sure you want to clear today's drink queue?")) {
+                systemZeroTime = null;
+                localStorage.removeItem('sleepTracker_zeroTime');
+                updateUI();
+            }
+        });
+
+        // Initialize and start timer
+        updateUI();
+        setInterval(updateUI, 60000); // Check every minute
+    </script>
+</body>
+</html>

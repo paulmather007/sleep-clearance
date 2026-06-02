@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a0a0a">
+    <title>Sleep Clearance</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600;700;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter Tight', system-ui, sans-serif;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .font-mono { font-family: 'Geist Mono', ui-monospace, monospace; }
+        .font-display {
+            font-family: 'Inter Tight', sans-serif;
+            font-weight: 900;
+            letter-spacing: -0.05em;
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 min-h-screen text-zinc-100 select-none antialiased flex flex-col">
+
+    <!-- Header -->
+    <div class="px-6 pt-14 pb-6 text-center border-b border-zinc-900">
+        <h1 class="text-xs font-bold tracking-[0.25em] uppercase text-zinc-300">Sleep Clearance</h1>
+        <p class="text-zinc-500 text-[11px] mt-2 font-mono tracking-wide">Bedtime 11:30 PM · Cutoff 8:30 PM</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-grow flex flex-col justify-center px-4 py-8">
+        <div class="bg-zinc-900 rounded-3xl border border-zinc-800 overflow-hidden w-full max-w-sm mx-auto shadow-2xl shadow-black/50">
+
+            <!-- Status Display -->
+            <div id="statusPanel" class="p-8 pb-6 text-center border-b-4 transition-colors duration-300">
+                <h2 class="text-[10px] font-bold uppercase tracking-[0.25em] text-zinc-500 mb-3">Can I have a drink?</h2>
+                <div id="verdictText" class="font-display text-8xl leading-none transition-colors duration-300">
+                    --
+                </div>
+                <div id="feedbackContainer" class="mt-4 min-h-[24px] flex items-center justify-center">
+                </div>
+            </div>
+
+            <!-- Action Area -->
+            <div class="p-6 flex flex-col items-center">
+                <div class="w-full grid grid-cols-2 gap-3">
+                    <button
+                        id="logBeerBtn"
+                        class="font-bold py-5 px-3 rounded-2xl transition-all active:scale-95 text-base tracking-wide flex flex-col items-center justify-center leading-tight"
+                    >
+                        <span>🍺 Beer</span>
+                        <span id="beerSubText" class="text-[10px] font-mono tracking-wider uppercase mt-1 opacity-70"></span>
+                    </button>
+                    <button
+                        id="logWineBtn"
+                        class="font-bold py-5 px-3 rounded-2xl transition-all active:scale-95 text-base tracking-wide flex flex-col items-center justify-center leading-tight"
+                    >
+                        <span>🍷 Wine</span>
+                        <span id="wineSubText" class="text-[10px] font-mono tracking-wider uppercase mt-1 opacity-70"></span>
+                    </button>
+                </div>
+
+                <button id="undoBtn" class="hidden mt-3 text-[11px] text-zinc-500 active:text-zinc-200 font-mono tracking-wider uppercase py-2">
+                    Undo last drink
+                </button>
+
+                <div class="mt-6 w-full text-sm">
+                    <div class="flex justify-between items-center py-3 border-b border-zinc-800">
+                        <span class="text-zinc-500 text-[10px] uppercase tracking-[0.2em] font-bold">Drinks Today</span>
+                        <span id="drinkCountText" class="font-mono text-zinc-100 font-semibold text-base">0</span>
+                    </div>
+                    <div class="flex justify-between items-center py-3 border-b border-zinc-800">
+                        <span class="text-zinc-500 text-[10px] uppercase tracking-[0.2em] font-bold">Breakdown</span>
+                        <span id="breakdownText" class="font-mono text-zinc-400 text-sm">—</span>
+                    </div>
+                    <div class="flex justify-between items-center py-3">
+                        <span class="text-zinc-500 text-[10px] uppercase tracking-[0.2em] font-bold">Queue Clears</span>
+                        <span id="queueTimeText" class="font-mono text-zinc-600 text-sm">—</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button id="resetBtn" class="mt-8 text-[11px] text-zinc-600 font-bold tracking-[0.2em] uppercase p-4 mx-auto block active:text-zinc-300">
+            Reset Today
+        </button>
+    </div>
+
+    <script>
+        // ============================================================
+        // CONFIGURATION — edit these to calibrate
+        // ============================================================
+
+        // How many "standard drinks" (14g ethanol each) is one logged drink?
+        // A US standard drink = 0.6 fl oz pure ethanol. Formula: oz × ABV / 0.6.
+        //
+        // BEER — common values:
+        //   12 oz lager  @ 5%   ABV = 1.0
+        //   12 oz IPA    @ 6.5% ABV = 1.3
+        //   16 oz pint   @ 6.5% ABV = 1.7
+        //   16 oz DIPA   @ 8%   ABV = 2.1
+        const BEER_UNITS = 1.3;
+
+        // WINE — common values:
+        //   5 oz red/white  @ 12%   ABV = 1.0
+        //   5 oz bold red   @ 14.5% ABV = 1.2
+        //   6 oz pour       @ 13%   ABV = 1.3
+        //   8 oz pour       @ 13%   ABV = 1.7
+        const WINE_UNITS = 1.0;
+
+        // How many minutes does YOUR body take to clear ONE standard drink?
+        //   210 lb male, average enzymes ≈ 84 minutes
+        //   Smaller body / female        ≈ 90–100 minutes
+        //   Larger body                  ≈ 70–80 minutes
+        const MINUTES_PER_STANDARD_DRINK = 70;
+
+        // Bedtime and hard cutoff
+        const BEDTIME_HOUR = 23;
+        const BEDTIME_MINUTE = 30;
+        const CUTOFF_HOUR = 20;
+        const CUTOFF_MINUTE = 30;
+
+        // Apple Shortcut to trigger when logging (leave empty string to disable)
+        const SHORTCUT_NAME = "Drink";
+
+        // How long (seconds) after logging can you undo?
+        const UNDO_WINDOW_SECONDS = 60;
+
+        // ============================================================
+        // Derived
+        // ============================================================
+        const MS_PER_BEER = BEER_UNITS * MINUTES_PER_STANDARD_DRINK * 60 * 1000;
+        const MS_PER_WINE = WINE_UNITS * MINUTES_PER_STANDARD_DRINK * 60 * 1000;
+        const BUDGET_THRESHOLD = 5; // show "N left" once budget drops to this
+
+        // ============================================================
+        // State (persisted)
+        // ============================================================
+        let systemZeroTime = localStorage.getItem('sleepTracker_zeroTime')
+            ? new Date(localStorage.getItem('sleepTracker_zeroTime'))
+            : null;
+        let lastDrinkTime = localStorage.getItem('sleepTracker_lastDrink')
+            ? new Date(localStorage.getItem('sleepTracker_lastDrink'))
+            : null;
+        let lastDrinkType = localStorage.getItem('sleepTracker_lastType') || ''; // 'beer' | 'wine'
+        let beerCount = parseInt(localStorage.getItem('sleepTracker_beerCount') || '0', 10);
+        let wineCount = parseInt(localStorage.getItem('sleepTracker_wineCount') || '0', 10);
+        let countDate = localStorage.getItem('sleepTracker_countDate') || '';
+
+        // Daily counter rolls over at 4 AM so a late drink doesn't reset it
+        function todayKey() {
+            const adjusted = new Date(Date.now() - 4 * 60 * 60 * 1000);
+            return adjusted.toDateString();
+        }
+        if (countDate !== todayKey()) {
+            beerCount = 0;
+            wineCount = 0;
+            countDate = todayKey();
+            localStorage.setItem('sleepTracker_beerCount', '0');
+            localStorage.setItem('sleepTracker_wineCount', '0');
+            localStorage.setItem('sleepTracker_countDate', countDate);
+        }
+
+        // ============================================================
+        // DOM
+        // ============================================================
+        const statusPanel = document.getElementById('statusPanel');
+        const verdictText = document.getElementById('verdictText');
+        const feedbackContainer = document.getElementById('feedbackContainer');
+        const logBeerBtn = document.getElementById('logBeerBtn');
+        const logWineBtn = document.getElementById('logWineBtn');
+        const beerSubText = document.getElementById('beerSubText');
+        const wineSubText = document.getElementById('wineSubText');
+        const undoBtn = document.getElementById('undoBtn');
+        const queueTimeText = document.getElementById('queueTimeText');
+        const drinkCountText = document.getElementById('drinkCountText');
+        const breakdownText = document.getElementById('breakdownText');
+        const resetBtn = document.getElementById('resetBtn');
+
+        const BTN_ENABLED = 'font-bold py-5 px-3 rounded-2xl transition-all active:scale-95 text-base tracking-wide flex flex-col items-center justify-center leading-tight bg-zinc-100 text-zinc-950';
+        const BTN_DISABLED = 'font-bold py-5 px-3 rounded-2xl text-base tracking-wide flex flex-col items-center justify-center leading-tight bg-zinc-800 text-zinc-600 cursor-not-allowed';
+
+        function formatClockTime(d) {
+            return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        }
+
+        function formatRelativeTime(future, now) {
+            const diffMs = future - now;
+            if (diffMs <= 0) return null;
+            const totalMin = Math.round(diffMs / 60000);
+            const h = Math.floor(totalMin / 60);
+            const m = totalMin % 60;
+            return h === 0 ? `${m}m` : `${h}h ${m}m`;
+        }
+
+        function updateUI() {
+            const now = new Date();
+
+            // Daily rollover check (in case app is left open across 4 AM)
+            if (countDate !== todayKey()) {
+                beerCount = 0;
+                wineCount = 0;
+                countDate = todayKey();
+                localStorage.setItem('sleepTracker_beerCount', '0');
+                localStorage.setItem('sleepTracker_wineCount', '0');
+                localStorage.setItem('sleepTracker_countDate', countDate);
+            }
+
+            const bedtime = new Date(now);
+            bedtime.setHours(BEDTIME_HOUR, BEDTIME_MINUTE, 0, 0);
+
+            const cutoffTime = new Date(now);
+            cutoffTime.setHours(CUTOFF_HOUR, CUTOFF_MINUTE, 0, 0);
+
+            let baseTime = systemZeroTime;
+            if (!baseTime || baseTime <= now) baseTime = now;
+
+            const msUntilBed = bedtime - baseTime;
+            const pastCutoff = now >= cutoffTime;
+
+            const beerBudget = pastCutoff ? 0 : Math.max(0, Math.floor(msUntilBed / MS_PER_BEER));
+            const wineBudget = pastCutoff ? 0 : Math.max(0, Math.floor(msUntilBed / MS_PER_WINE));
+
+            const canBeer = beerBudget > 0;
+            const canWine = wineBudget > 0;
+            const canAny = canBeer || canWine;
+
+            verdictText.textContent = canAny ? 'YES' : 'NO';
+
+            if (canAny) {
+                statusPanel.className = 'p-8 pb-6 text-center border-b-4 border-emerald-500 bg-emerald-950/20 transition-colors duration-300';
+                verdictText.className = 'font-display text-8xl leading-none text-emerald-400 transition-colors duration-300';
+            } else {
+                statusPanel.className = 'p-8 pb-6 text-center border-b-4 border-rose-500 bg-rose-950/20 transition-colors duration-300';
+                verdictText.className = 'font-display text-8xl leading-none text-rose-400 transition-colors duration-300';
+            }
+
+            // Per-button state
+            function applyButton(btn, subEl, can, budget, label) {
+                if (can) {
+                    btn.className = BTN_ENABLED;
+                    btn.disabled = false;
+                    subEl.textContent = budget <= BUDGET_THRESHOLD ? `${budget} left` : '';
+                } else {
+                    btn.className = BTN_DISABLED;
+                    btn.disabled = true;
+                    subEl.textContent = pastCutoff ? 'Cut off' : 'No room';
+                }
+            }
+            applyButton(logBeerBtn, beerSubText, canBeer, beerBudget, 'Beer');
+            applyButton(logWineBtn, wineSubText, canWine, wineBudget, 'Wine');
+
+            // Feedback under the verdict
+            if (!canAny) {
+                const reason = pastCutoff
+                    ? "Past 8:30 PM hard cutoff."
+                    : "Budget empty. Another drink disrupts sleep.";
+                feedbackContainer.innerHTML = `<p class="font-semibold text-sm text-rose-300">${reason}</p>`;
+            } else {
+                feedbackContainer.innerHTML = '';
+            }
+
+            // Queue clears row
+            const isClearanceInPast = systemZeroTime && systemZeroTime <= now;
+            if (!systemZeroTime || isClearanceInPast) {
+                queueTimeText.textContent = '—';
+                queueTimeText.className = 'font-mono text-zinc-600 text-sm';
+            } else {
+                const clockStr = formatClockTime(systemZeroTime);
+                const relStr = formatRelativeTime(systemZeroTime, now);
+                queueTimeText.innerHTML = `<span class="text-zinc-100">${clockStr}</span><span class="text-zinc-600"> · </span><span class="text-zinc-400">${relStr}</span>`;
+                queueTimeText.className = 'font-mono text-sm';
+            }
+
+            // Drink count + breakdown
+            const total = beerCount + wineCount;
+            drinkCountText.textContent = total;
+            if (total === 0) {
+                breakdownText.textContent = '—';
+            } else {
+                breakdownText.textContent = `🍺 ${beerCount} · 🍷 ${wineCount}`;
+            }
+
+            // Undo button visibility + countdown
+            const undoActive = lastDrinkTime && (now - lastDrinkTime) < UNDO_WINDOW_SECONDS * 1000;
+            if (undoActive) {
+                undoBtn.classList.remove('hidden');
+                const remainingS = Math.ceil((UNDO_WINDOW_SECONDS * 1000 - (now - lastDrinkTime)) / 1000);
+                const label = lastDrinkType === 'wine' ? 'wine' : 'beer';
+                undoBtn.textContent = `↶ Undo last ${label} (${remainingS}s)`;
+            } else {
+                undoBtn.classList.add('hidden');
+            }
+        }
+
+        // ============================================================
+        // Event handlers
+        // ============================================================
+        function logDrink(type) {
+            const ms = type === 'wine' ? MS_PER_WINE : MS_PER_BEER;
+            const now = new Date();
+            let baseTime = systemZeroTime;
+            if (!baseTime || baseTime <= now) baseTime = now;
+
+            systemZeroTime = new Date(baseTime.getTime() + ms);
+            lastDrinkTime = now;
+            lastDrinkType = type;
+            if (type === 'wine') wineCount += 1;
+            else beerCount += 1;
+            countDate = todayKey();
+
+            localStorage.setItem('sleepTracker_zeroTime', systemZeroTime.toISOString());
+            localStorage.setItem('sleepTracker_lastDrink', lastDrinkTime.toISOString());
+            localStorage.setItem('sleepTracker_lastType', lastDrinkType);
+            localStorage.setItem('sleepTracker_beerCount', beerCount.toString());
+            localStorage.setItem('sleepTracker_wineCount', wineCount.toString());
+            localStorage.setItem('sleepTracker_countDate', countDate);
+
+            updateUI();
+
+            if (SHORTCUT_NAME) {
+                window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(SHORTCUT_NAME)}`;
+            }
+        }
+
+        logBeerBtn.addEventListener('click', () => logDrink('beer'));
+        logWineBtn.addEventListener('click', () => logDrink('wine'));
+
+        undoBtn.addEventListener('click', () => {
+            if (!lastDrinkTime || !systemZeroTime) return;
+            const now = new Date();
+            if ((now - lastDrinkTime) >= UNDO_WINDOW_SECONDS * 1000) return;
+
+            const ms = lastDrinkType === 'wine' ? MS_PER_WINE : MS_PER_BEER;
+            const newZero = new Date(systemZeroTime.getTime() - ms);
+            if (newZero <= now) {
+                systemZeroTime = null;
+                localStorage.removeItem('sleepTracker_zeroTime');
+            } else {
+                systemZeroTime = newZero;
+                localStorage.setItem('sleepTracker_zeroTime', systemZeroTime.toISOString());
+            }
+
+            if (lastDrinkType === 'wine') {
+                wineCount = Math.max(0, wineCount - 1);
+                localStorage.setItem('sleepTracker_wineCount', wineCount.toString());
+            } else {
+                beerCount = Math.max(0, beerCount - 1);
+                localStorage.setItem('sleepTracker_beerCount', beerCount.toString());
+            }
+
+            lastDrinkTime = null;
+            lastDrinkType = '';
+            localStorage.removeItem('sleepTracker_lastDrink');
+            localStorage.removeItem('sleepTracker_lastType');
+
+            updateUI();
+        });
+
+        resetBtn.addEventListener('click', () => {
+            if (confirm("Clear today's drink queue?")) {
+                systemZeroTime = null;
+                lastDrinkTime = null;
+                lastDrinkType = '';
+                beerCount = 0;
+                wineCount = 0;
+                localStorage.removeItem('sleepTracker_zeroTime');
+                localStorage.removeItem('sleepTracker_lastDrink');
+                localStorage.removeItem('sleepTracker_lastType');
+                localStorage.setItem('sleepTracker_beerCount', '0');
+                localStorage.setItem('sleepTracker_wineCount', '0');
+                updateUI();
+            }
+        });
+
+        updateUI();
+        // Tick every second so the undo countdown and "in 1h 23m" stay live
+        setInterval(updateUI, 1000);
+    </script>
+</body>
+</html>
