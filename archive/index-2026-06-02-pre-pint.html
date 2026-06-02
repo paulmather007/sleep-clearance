@@ -48,24 +48,17 @@
 
             <!-- Action Area -->
             <div class="p-6 flex flex-col items-center">
-                <div class="w-full grid grid-cols-3 gap-2">
+                <div class="w-full grid grid-cols-2 gap-3">
                     <button
                         id="logBeerBtn"
-                        class="font-bold py-5 px-2 rounded-2xl transition-all active:scale-95 text-sm tracking-wide flex flex-col items-center justify-center leading-tight"
+                        class="font-bold py-5 px-3 rounded-2xl transition-all active:scale-95 text-base tracking-wide flex flex-col items-center justify-center leading-tight"
                     >
                         <span>🍺 Beer</span>
                         <span id="beerSubText" class="text-[10px] font-mono tracking-wider uppercase mt-1 opacity-70"></span>
                     </button>
                     <button
-                        id="logPintBtn"
-                        class="font-bold py-5 px-2 rounded-2xl transition-all active:scale-95 text-sm tracking-wide flex flex-col items-center justify-center leading-tight"
-                    >
-                        <span>🍺 Pint</span>
-                        <span id="pintSubText" class="text-[10px] font-mono tracking-wider uppercase mt-1 opacity-70"></span>
-                    </button>
-                    <button
                         id="logWineBtn"
-                        class="font-bold py-5 px-2 rounded-2xl transition-all active:scale-95 text-sm tracking-wide flex flex-col items-center justify-center leading-tight"
+                        class="font-bold py-5 px-3 rounded-2xl transition-all active:scale-95 text-base tracking-wide flex flex-col items-center justify-center leading-tight"
                     >
                         <span>🍷 Wine</span>
                         <span id="wineSubText" class="text-[10px] font-mono tracking-wider uppercase mt-1 opacity-70"></span>
@@ -106,17 +99,12 @@
         // How many "standard drinks" (14g ethanol each) is one logged drink?
         // A US standard drink = 0.6 fl oz pure ethanol. Formula: oz × ABV / 0.6.
         //
-        // BEER — common 12 oz values (use PINT below for 16 oz pours):
+        // BEER — common values:
         //   12 oz lager  @ 5%   ABV = 1.0
         //   12 oz IPA    @ 6.5% ABV = 1.3
-        //   12 oz DIPA   @ 8%   ABV = 1.6
-        const BEER_UNITS = 1.3;
-
-        // PINT — common values:
         //   16 oz pint   @ 6.5% ABV = 1.7
-        //   16 oz lager  @ 5%   ABV = 1.3
         //   16 oz DIPA   @ 8%   ABV = 2.1
-        const PINT_UNITS = 1.7;
+        const BEER_UNITS = 1.3;
 
         // WINE — common values:
         //   5 oz red/white  @ 12%   ABV = 1.0
@@ -147,10 +135,7 @@
         // Derived
         // ============================================================
         const MS_PER_BEER = BEER_UNITS * MINUTES_PER_STANDARD_DRINK * 60 * 1000;
-        const MS_PER_PINT = PINT_UNITS * MINUTES_PER_STANDARD_DRINK * 60 * 1000;
         const MS_PER_WINE = WINE_UNITS * MINUTES_PER_STANDARD_DRINK * 60 * 1000;
-        // Clearance cost per drink type, keyed by the stored type string
-        const MS_PER_TYPE = { beer: MS_PER_BEER, pint: MS_PER_PINT, wine: MS_PER_WINE };
         const BUDGET_THRESHOLD = 5; // show "N left" once budget drops to this
 
         // ============================================================
@@ -162,9 +147,8 @@
         let lastDrinkTime = localStorage.getItem('sleepTracker_lastDrink')
             ? new Date(localStorage.getItem('sleepTracker_lastDrink'))
             : null;
-        let lastDrinkType = localStorage.getItem('sleepTracker_lastType') || ''; // 'beer' | 'pint' | 'wine'
+        let lastDrinkType = localStorage.getItem('sleepTracker_lastType') || ''; // 'beer' | 'wine'
         let beerCount = parseInt(localStorage.getItem('sleepTracker_beerCount') || '0', 10);
-        let pintCount = parseInt(localStorage.getItem('sleepTracker_pintCount') || '0', 10);
         let wineCount = parseInt(localStorage.getItem('sleepTracker_wineCount') || '0', 10);
         let countDate = localStorage.getItem('sleepTracker_countDate') || '';
 
@@ -175,11 +159,9 @@
         }
         if (countDate !== todayKey()) {
             beerCount = 0;
-            pintCount = 0;
             wineCount = 0;
             countDate = todayKey();
             localStorage.setItem('sleepTracker_beerCount', '0');
-            localStorage.setItem('sleepTracker_pintCount', '0');
             localStorage.setItem('sleepTracker_wineCount', '0');
             localStorage.setItem('sleepTracker_countDate', countDate);
         }
@@ -191,10 +173,8 @@
         const verdictText = document.getElementById('verdictText');
         const feedbackContainer = document.getElementById('feedbackContainer');
         const logBeerBtn = document.getElementById('logBeerBtn');
-        const logPintBtn = document.getElementById('logPintBtn');
         const logWineBtn = document.getElementById('logWineBtn');
         const beerSubText = document.getElementById('beerSubText');
-        const pintSubText = document.getElementById('pintSubText');
         const wineSubText = document.getElementById('wineSubText');
         const undoBtn = document.getElementById('undoBtn');
         const queueTimeText = document.getElementById('queueTimeText');
@@ -202,8 +182,8 @@
         const breakdownText = document.getElementById('breakdownText');
         const resetBtn = document.getElementById('resetBtn');
 
-        const BTN_ENABLED = 'font-bold py-5 px-2 rounded-2xl transition-all active:scale-95 text-sm tracking-wide flex flex-col items-center justify-center leading-tight bg-zinc-100 text-zinc-950';
-        const BTN_DISABLED = 'font-bold py-5 px-2 rounded-2xl text-sm tracking-wide flex flex-col items-center justify-center leading-tight bg-zinc-800 text-zinc-600 cursor-not-allowed';
+        const BTN_ENABLED = 'font-bold py-5 px-3 rounded-2xl transition-all active:scale-95 text-base tracking-wide flex flex-col items-center justify-center leading-tight bg-zinc-100 text-zinc-950';
+        const BTN_DISABLED = 'font-bold py-5 px-3 rounded-2xl text-base tracking-wide flex flex-col items-center justify-center leading-tight bg-zinc-800 text-zinc-600 cursor-not-allowed';
 
         function formatClockTime(d) {
             return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -244,13 +224,11 @@
             const pastCutoff = now >= cutoffTime;
 
             const beerBudget = pastCutoff ? 0 : Math.max(0, Math.floor(msUntilBed / MS_PER_BEER));
-            const pintBudget = pastCutoff ? 0 : Math.max(0, Math.floor(msUntilBed / MS_PER_PINT));
             const wineBudget = pastCutoff ? 0 : Math.max(0, Math.floor(msUntilBed / MS_PER_WINE));
 
             const canBeer = beerBudget > 0;
-            const canPint = pintBudget > 0;
             const canWine = wineBudget > 0;
-            const canAny = canBeer || canPint || canWine;
+            const canAny = canBeer || canWine;
 
             verdictText.textContent = canAny ? 'YES' : 'NO';
 
@@ -275,7 +253,6 @@
                 }
             }
             applyButton(logBeerBtn, beerSubText, canBeer, beerBudget, 'Beer');
-            applyButton(logPintBtn, pintSubText, canPint, pintBudget, 'Pint');
             applyButton(logWineBtn, wineSubText, canWine, wineBudget, 'Wine');
 
             // Feedback under the verdict
@@ -301,12 +278,12 @@
             }
 
             // Drink count + breakdown
-            const total = beerCount + pintCount + wineCount;
+            const total = beerCount + wineCount;
             drinkCountText.textContent = total;
             if (total === 0) {
                 breakdownText.textContent = '—';
             } else {
-                breakdownText.textContent = `🍺 ${beerCount} · 🍺16 ${pintCount} · 🍷 ${wineCount}`;
+                breakdownText.textContent = `🍺 ${beerCount} · 🍷 ${wineCount}`;
             }
 
             // Undo button visibility + countdown
@@ -314,7 +291,7 @@
             if (undoActive) {
                 undoBtn.classList.remove('hidden');
                 const remainingS = Math.ceil((UNDO_WINDOW_SECONDS * 1000 - (now - lastDrinkTime)) / 1000);
-                const label = lastDrinkType === 'wine' ? 'wine' : (lastDrinkType === 'pint' ? 'pint' : 'beer');
+                const label = lastDrinkType === 'wine' ? 'wine' : 'beer';
                 undoBtn.textContent = `↶ Undo last ${label} (${remainingS}s)`;
             } else {
                 undoBtn.classList.add('hidden');
@@ -325,7 +302,7 @@
         // Event handlers
         // ============================================================
         function logDrink(type) {
-            const ms = MS_PER_TYPE[type];
+            const ms = type === 'wine' ? MS_PER_WINE : MS_PER_BEER;
             const now = new Date();
             let baseTime = systemZeroTime;
             if (!baseTime || baseTime <= now) baseTime = now;
@@ -334,7 +311,6 @@
             lastDrinkTime = now;
             lastDrinkType = type;
             if (type === 'wine') wineCount += 1;
-            else if (type === 'pint') pintCount += 1;
             else beerCount += 1;
             countDate = todayKey();
 
@@ -342,7 +318,6 @@
             localStorage.setItem('sleepTracker_lastDrink', lastDrinkTime.toISOString());
             localStorage.setItem('sleepTracker_lastType', lastDrinkType);
             localStorage.setItem('sleepTracker_beerCount', beerCount.toString());
-            localStorage.setItem('sleepTracker_pintCount', pintCount.toString());
             localStorage.setItem('sleepTracker_wineCount', wineCount.toString());
             localStorage.setItem('sleepTracker_countDate', countDate);
 
@@ -354,7 +329,6 @@
         }
 
         logBeerBtn.addEventListener('click', () => logDrink('beer'));
-        logPintBtn.addEventListener('click', () => logDrink('pint'));
         logWineBtn.addEventListener('click', () => logDrink('wine'));
 
         undoBtn.addEventListener('click', () => {
@@ -362,7 +336,7 @@
             const now = new Date();
             if ((now - lastDrinkTime) >= UNDO_WINDOW_SECONDS * 1000) return;
 
-            const ms = MS_PER_TYPE[lastDrinkType];
+            const ms = lastDrinkType === 'wine' ? MS_PER_WINE : MS_PER_BEER;
             const newZero = new Date(systemZeroTime.getTime() - ms);
             if (newZero <= now) {
                 systemZeroTime = null;
@@ -375,9 +349,6 @@
             if (lastDrinkType === 'wine') {
                 wineCount = Math.max(0, wineCount - 1);
                 localStorage.setItem('sleepTracker_wineCount', wineCount.toString());
-            } else if (lastDrinkType === 'pint') {
-                pintCount = Math.max(0, pintCount - 1);
-                localStorage.setItem('sleepTracker_pintCount', pintCount.toString());
             } else {
                 beerCount = Math.max(0, beerCount - 1);
                 localStorage.setItem('sleepTracker_beerCount', beerCount.toString());
@@ -397,13 +368,11 @@
                 lastDrinkTime = null;
                 lastDrinkType = '';
                 beerCount = 0;
-                pintCount = 0;
                 wineCount = 0;
                 localStorage.removeItem('sleepTracker_zeroTime');
                 localStorage.removeItem('sleepTracker_lastDrink');
                 localStorage.removeItem('sleepTracker_lastType');
                 localStorage.setItem('sleepTracker_beerCount', '0');
-                localStorage.setItem('sleepTracker_pintCount', '0');
                 localStorage.setItem('sleepTracker_wineCount', '0');
                 updateUI();
             }
