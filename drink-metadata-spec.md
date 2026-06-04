@@ -1,6 +1,11 @@
 # Spec — Pass drink type + overshoot to the Sleep Journal
 
-**Status:** design agreed, **pre-implementation test PASSED** (see §0) — cleared to implement §2–§4 as written.
+**Status:** **IMPLEMENTED 2026-06-04.** §2 (web app) shipped in `Sleep tracker/`
+(commit `1e2ec0e`, pushed to GitHub Pages); §3 (Apple `Drink` shortcut → dumb
+appender) updated on the iPhone; §4 (Sleep Journal parser/schema/dedup/timeline)
+present in `Sleep Journal/` with passing `tests/test_drink_metadata.py` (now under
+git, commit `0faf4de`). Remaining: §7 step 5 — real-world end-to-end check on the
+next actual drink. Original gate (§0) test PASSED pre-implementation.
 **Date:** 2026-06-04.
 **Scope:** two repos — `Sleep tracker/` (the web app + the Apple Shortcut) and
 `Sleep Journal/` (the macOS ingest + DB + UI). No third-party services; iCloud

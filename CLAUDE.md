@@ -50,7 +50,7 @@ No build step. The app lives on Paul's iPhone home screen as a saved web page (P
 
 ## Apple Shortcut Integration
 
-Logging either drink fires `shortcuts://run-shortcut?name=Drink` via `window.location.href`. Single shortcut handles both types — type is **not** passed to the shortcut. Set `SHORTCUT_NAME = ""` to disable.
+Logging a drink fires `shortcuts://run-shortcut?name=Drink&input=text&text=<line>` via `window.location.href`, where `<line>` is the full `sleep_log.txt` line the web app builds: `<localISO>|<Type>[|overshoot]` (`Type` ∈ `Beer`/`Pint`/`Wine`; `|overshoot` appended when the drink's clearance finishes after bedtime). The single `Drink` shortcut is now a dumb sink — it just appends `Shortcut Input` to `sleep_log.txt` in iCloud Drive; it no longer computes the timestamp or type. The timestamp MUST be **local** time (never UTC `Z`) or the journal timeline shows the wrong HH:MM — `logDrink()` builds it via the `localISO()` helper and the `TYPE_LABEL` map. Set `SHORTCUT_NAME = ""` to disable. Full design + the consuming Sleep Journal changes: `drink-metadata-spec.md`.
 
 ## Persistence
 
