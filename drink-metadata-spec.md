@@ -1,6 +1,6 @@
 # Spec — Pass drink type + overshoot to the Sleep Journal
 
-**Status:** design agreed, **blocked on a pre-implementation test** (see §0).
+**Status:** design agreed, **pre-implementation test PASSED** (see §0) — cleared to implement §2–§4 as written.
 **Date:** 2026-06-04.
 **Scope:** two repos — `Sleep tracker/` (the web app + the Apple Shortcut) and
 `Sleep Journal/` (the macOS ingest + DB + UI). No third-party services; iCloud
@@ -33,18 +33,22 @@ recurring prompt.
 **Pass condition:** Button B is as silent as Button A, AND the full
 `…|Pint|overshoot` line lands intact (real `|`, not `%7C`) in `sleeptest_log.txt`.
 
-### Test result — fill in next session
+### Test result — CONFIRMED 2026-06-04
 
-- **Date run:** _______
-- **iOS version:** _______
-- **Did B prompt when A didn't?** _______ (if yes, what did the prompt say?)
-- **Did the full line land intact in `sleeptest_log.txt`?** _______
-- **Verdict:** ☐ PASS → proceed with §2–§4 as written.
-  ☐ FAIL → do NOT implement as specced; pick a fallback (e.g. clipboard hand-off)
-  and revise §2c/§3 first.
+- **Date run:** 2026-06-04
+- **Did B prompt when A didn't?** **No.** Button B (`&input=text&text=…`) fired as
+  silently as the baseline — no per-log iOS confirmation. Writing the text line to
+  iCloud Drive via the Shortcut happens with no user prompt each time, exactly as
+  the design assumed.
+- **Did the full line land intact in `sleeptest_log.txt`?** **Yes**, after fixing a
+  throwaway-shortcut misconfig. The `…|Pint|overshoot` line lands intact (real `|`).
+  (An initial empty-file result was traced to the test `SleepTest` shortcut, not the
+  URL technique — once the shortcut was corrected, Button B wrote the full line.)
+- **Verdict:** ☑ **PASS** → proceed with §2–§4 as written. The `&input=text&text=…`
+  hand-off is confirmed; no clipboard fallback needed.
 
-Once recorded, the test scaffolding (`test.html`, `TESTING-shortcut-prompt.md`) can
-be removed per the cleanup step in the runbook.
+Once the rewrite is done, the test scaffolding (`test.html`,
+`TESTING-shortcut-prompt.md`) can be removed per the cleanup step in the runbook.
 
 ---
 
