@@ -140,9 +140,6 @@
         // Apple Shortcut to trigger when logging (leave empty string to disable)
         const SHORTCUT_NAME = "Drink";
 
-        // Label mapping sent to Shortcut for sleep_log.txt
-        const TYPE_LABEL = { beer: 'Beer', pint: 'Pint', wine: 'Wine' };
-
         // How long (seconds) after logging can you undo?
         const UNDO_WINDOW_SECONDS = 60;
 
@@ -219,12 +216,6 @@
             const h = Math.floor(totalMin / 60);
             const m = totalMin % 60;
             return h === 0 ? `${m}m` : `${h}h ${m}m`;
-        }
-
-        function localISO(d) {
-            const p = n => String(n).padStart(2, '0');
-            return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}` +
-                   `T${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
         }
 
         function updateUI() {
@@ -358,16 +349,7 @@
             updateUI();
 
             if (SHORTCUT_NAME) {
-                const bedtime = new Date(now);
-                bedtime.setHours(BEDTIME_HOUR, BEDTIME_MINUTE, 0, 0);
-                const overshoot = systemZeroTime > bedtime;
-                
-                let line = `${localISO(now)}|${TYPE_LABEL[type]}`;
-                if (overshoot) line += '|overshoot';
-                
-                window.location.href = 
-                    `shortcuts://run-shortcut?name=${encodeURIComponent(SHORTCUT_NAME)}` +
-                    `&input=text&text=${encodeURIComponent(line)}`;
+                window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(SHORTCUT_NAME)}`;
             }
         }
 
