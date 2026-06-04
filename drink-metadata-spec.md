@@ -1,10 +1,52 @@
 # Spec — Pass drink type + overshoot to the Sleep Journal
 
-**Status:** design agreed, not yet implemented.
+**Status:** design agreed, **blocked on a pre-implementation test** (see §0).
 **Date:** 2026-06-04.
 **Scope:** two repos — `Sleep tracker/` (the web app + the Apple Shortcut) and
 `Sleep Journal/` (the macOS ingest + DB + UI). No third-party services; iCloud
 Drive remains the only courier, exactly as today.
+
+## 0. Pre-implementation test gate (BLOCKER — do this first)
+
+Before any of §2–§4 is implemented, we must confirm on the actual iPhone that
+handing the Shortcut **text input** via `&input=text&text=…` does **not** trigger a
+per-log iOS confirmation prompt. iOS prompting is version-dependent, so this is an
+empirical gate, not a settled assumption.
+
+**Expectation (why we think it's safe):** the "wants to run [Shortcut]" grant is
+keyed to source + shortcut name (unchanged by query params), and today's app already
+fires `shortcuts://run-shortcut?name=Drink` silently. The only known caveat is a
+**one-time** "Allow access to [file]?" re-grant after editing the Shortcut — not a
+recurring prompt.
+
+**Test scaffolding already built (this repo, 2026-06-04):**
+- `test.html` — standalone page, same PWA meta tags + same GitHub Pages origin as the
+  real app. Button **A** = baseline no-input call (mirrors today). Button **B** =
+  new `&input=text&text=2026-06-04T20:15:00|Pint|overshoot` form. On-screen log shows
+  the exact fired URL.
+- `TESTING-shortcut-prompt.md` — full iPhone runbook: deploy `test.html`, build a
+  throwaway `SleepTest` shortcut that appends Shortcut Input to
+  `iCloud Drive/Shortcuts/sleeptest_log.txt`, add the page to the Home Screen, run
+  A-then-B, report, clean up. Nothing touches the live `Drink` shortcut or
+  `sleep_log.txt`.
+
+**Pass condition:** Button B is as silent as Button A, AND the full
+`…|Pint|overshoot` line lands intact (real `|`, not `%7C`) in `sleeptest_log.txt`.
+
+### Test result — fill in next session
+
+- **Date run:** _______
+- **iOS version:** _______
+- **Did B prompt when A didn't?** _______ (if yes, what did the prompt say?)
+- **Did the full line land intact in `sleeptest_log.txt`?** _______
+- **Verdict:** ☐ PASS → proceed with §2–§4 as written.
+  ☐ FAIL → do NOT implement as specced; pick a fallback (e.g. clipboard hand-off)
+  and revise §2c/§3 first.
+
+Once recorded, the test scaffolding (`test.html`, `TESTING-shortcut-prompt.md`) can
+be removed per the cleanup step in the runbook.
+
+---
 
 ## Goal
 
