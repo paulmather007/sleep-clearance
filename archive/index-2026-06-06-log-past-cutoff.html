@@ -206,6 +206,7 @@
         const resetBtn = document.getElementById('resetBtn');
 
         const BTN_ENABLED = 'font-bold py-5 px-2 rounded-2xl transition-all active:scale-95 text-sm tracking-wide flex flex-col items-center justify-center leading-tight bg-zinc-100 text-zinc-950';
+        const BTN_DISABLED = 'font-bold py-5 px-2 rounded-2xl text-sm tracking-wide flex flex-col items-center justify-center leading-tight bg-zinc-800 text-zinc-600 cursor-not-allowed';
 
         function formatClockTime(d) {
             return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -272,11 +273,13 @@
 
             // Per-button state
             function applyButton(btn, subEl, can, budget, label) {
-                btn.className = BTN_ENABLED;
-                btn.disabled = false;
                 if (can) {
+                    btn.className = BTN_ENABLED;
+                    btn.disabled = false;
                     subEl.textContent = budget <= BUDGET_THRESHOLD ? `${budget} left` : '';
                 } else {
+                    btn.className = BTN_DISABLED;
+                    btn.disabled = true;
                     subEl.textContent = pastCutoff ? 'Cut off' : 'No room';
                 }
             }

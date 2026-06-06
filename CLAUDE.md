@@ -44,7 +44,7 @@ No build step. The app lives on Paul's iPhone home screen as a saved web page (P
 - Big `YES` / `NO` verdict reflects the **most permissive** state: YES if any of beer/pint/wine still fits before bedtime, NO only when none does.
 - Three side-by-side log buttons in a `grid-cols-3` row (`🍺 Beer`, `🍺 Pint`, `🍷 Wine`). Each button independently:
   - Shows `N left` **only** when that type's budget ≤ `BUDGET_THRESHOLD` (5). Above the threshold the sub-text is blank — the threshold exists to nudge restraint, not to brag about headroom.
-  - Greys to `No room` if that type alone won't fit, or `Cut off` after 8:30 PM.
+  - Shows `No room` if that type alone won't fit, or `Cut off` after 8:30 PM. Buttons themselves always remain active and enabled (never greyed out or disabled) to encourage recording overshoot drinks.
 - Drinks Today row shows total; Breakdown row shows `🍺 N · 🍺16 N · 🍷 N` (the `🍺16` glyph distinguishes pints from 12 oz beers).
 - Undo button appears for `UNDO_WINDOW_SECONDS = 60` after any log; remembers the drink type and subtracts the right amount.
 
