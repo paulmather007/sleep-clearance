@@ -232,11 +232,9 @@
             // Daily rollover check (in case app is left open across 4 AM)
             if (countDate !== todayKey()) {
                 beerCount = 0;
-                pintCount = 0;
                 wineCount = 0;
                 countDate = todayKey();
                 localStorage.setItem('sleepTracker_beerCount', '0');
-                localStorage.setItem('sleepTracker_pintCount', '0');
                 localStorage.setItem('sleepTracker_wineCount', '0');
                 localStorage.setItem('sleepTracker_countDate', countDate);
             }
