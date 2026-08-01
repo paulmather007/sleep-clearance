@@ -48,13 +48,6 @@
 
             <!-- Action Area -->
             <div class="p-6 flex flex-col items-center">
-                <button id="naltrexoneBtn" class="w-full mb-3 rounded-2xl py-4 px-4 font-bold text-sm tracking-wide transition-all flex flex-col items-center justify-center leading-tight">
-                    <span id="naltrexoneText">💊 Log Naltrexone</span>
-                    <div id="naltrexoneTrack" class="hidden w-full h-1 mt-2.5 rounded-full bg-zinc-800 overflow-hidden">
-                        <div id="naltrexoneBar" class="h-full bg-amber-400 rounded-full transition-all duration-1000" style="width:0%"></div>
-                    </div>
-                </button>
-
                 <div class="w-full grid grid-cols-3 gap-2">
                     <button
                         id="logBeerBtn"
@@ -144,16 +137,11 @@
         const CUTOFF_HOUR = 20;
         const CUTOFF_MINUTE = 30;
 
-        // Naltrexone (Sinclair method): a dose must be logged this many
-        // minutes before drinking. One dose covers the rest of the day;
-        // the "taken" state resets at the 4 AM rollover like the counters.
-        const NALTREXONE_LEAD_MINUTES = 60;
-
         // Apple Shortcut to trigger when logging (leave empty string to disable)
         const SHORTCUT_NAME = "Drink";
 
         // Label mapping sent to Shortcut for sleep_log.txt
-        const TYPE_LABEL = { beer: 'Beer', pint: 'Pint', wine: 'Wine', naltrexone: 'Naltrexone' };
+        const TYPE_LABEL = { beer: 'Beer', pint: 'Pint', wine: 'Wine' };
 
         // How long (seconds) after logging can you undo?
         const UNDO_WINDOW_SECONDS = 60;
@@ -166,8 +154,6 @@
         const MS_PER_WINE = WINE_UNITS * MINUTES_PER_STANDARD_DRINK * 60 * 1000;
         // Clearance cost per drink type, keyed by the stored type string
         const MS_PER_TYPE = { beer: MS_PER_BEER, pint: MS_PER_PINT, wine: MS_PER_WINE };
-        const NALTREXONE_LEAD_MS = NALTREXONE_LEAD_MINUTES * 60 * 1000;
-        const MS_PER_SMALLEST_DRINK = Math.min(MS_PER_BEER, MS_PER_PINT, MS_PER_WINE);
         const BUDGET_THRESHOLD = 5; // show "N left" once budget drops to this
 
         // ============================================================
@@ -184,32 +170,22 @@
         let pintCount = parseInt(localStorage.getItem('sleepTracker_pintCount') || '0', 10);
         let wineCount = parseInt(localStorage.getItem('sleepTracker_wineCount') || '0', 10);
         let countDate = localStorage.getItem('sleepTracker_countDate') || '';
-        let naltrexoneTime = localStorage.getItem('sleepTracker_naltrexoneTime')
-            ? new Date(localStorage.getItem('sleepTracker_naltrexoneTime'))
-            : null;
 
         // Daily counter rolls over at 4 AM so a late drink doesn't reset it
         function todayKey() {
             const adjusted = new Date(Date.now() - 4 * 60 * 60 * 1000);
             return adjusted.toDateString();
         }
-        // A dose only counts for the 4 AM–4 AM "day" it was logged in
-        function isDoseToday(d) {
-            return !!d && new Date(d.getTime() - 4 * 60 * 60 * 1000).toDateString() === todayKey();
-        }
-        function rolloverDay() {
+        if (countDate !== todayKey()) {
             beerCount = 0;
             pintCount = 0;
             wineCount = 0;
-            naltrexoneTime = null;
             countDate = todayKey();
             localStorage.setItem('sleepTracker_beerCount', '0');
             localStorage.setItem('sleepTracker_pintCount', '0');
             localStorage.setItem('sleepTracker_wineCount', '0');
-            localStorage.removeItem('sleepTracker_naltrexoneTime');
             localStorage.setItem('sleepTracker_countDate', countDate);
         }
-        if (countDate !== todayKey()) rolloverDay();
 
         // ============================================================
         // DOM
@@ -228,17 +204,8 @@
         const drinkCountText = document.getElementById('drinkCountText');
         const breakdownText = document.getElementById('breakdownText');
         const resetBtn = document.getElementById('resetBtn');
-        const naltrexoneBtn = document.getElementById('naltrexoneBtn');
-        const naltrexoneText = document.getElementById('naltrexoneText');
-        const naltrexoneTrack = document.getElementById('naltrexoneTrack');
-        const naltrexoneBar = document.getElementById('naltrexoneBar');
 
         const BTN_ENABLED = 'font-bold py-5 px-2 rounded-2xl transition-all active:scale-95 text-sm tracking-wide flex flex-col items-center justify-center leading-tight bg-zinc-100 text-zinc-950';
-
-        const NALT_BASE = 'w-full mb-3 rounded-2xl py-4 px-4 font-bold text-sm tracking-wide transition-all flex flex-col items-center justify-center leading-tight';
-        const NALT_LOG = `${NALT_BASE} border border-violet-500/50 bg-violet-500/10 text-violet-300 active:scale-95`;
-        const NALT_PENDING = `${NALT_BASE} border border-amber-500/40 bg-amber-500/10 text-amber-300`;
-        const NALT_ACTIVE = `${NALT_BASE} border border-emerald-500/30 bg-emerald-500/5 text-emerald-400`;
 
         function formatClockTime(d) {
             return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -263,7 +230,16 @@
             const now = new Date();
 
             // Daily rollover check (in case app is left open across 4 AM)
-            if (countDate !== todayKey()) rolloverDay();
+            if (countDate !== todayKey()) {
+                beerCount = 0;
+                pintCount = 0;
+                wineCount = 0;
+                countDate = todayKey();
+                localStorage.setItem('sleepTracker_beerCount', '0');
+                localStorage.setItem('sleepTracker_pintCount', '0');
+                localStorage.setItem('sleepTracker_wineCount', '0');
+                localStorage.setItem('sleepTracker_countDate', countDate);
+            }
 
             const bedtime = new Date(now);
             bedtime.setHours(BEDTIME_HOUR, BEDTIME_MINUTE, 0, 0);
@@ -286,81 +262,14 @@
             const canWine = wineBudget > 0;
             const canAny = canBeer || canPint || canWine;
 
-            // Naltrexone state: activeAt is real (dose logged) or hypothetical
-            // (what a dose taken right now would give)
-            const doseTime = isDoseToday(naltrexoneTime) ? naltrexoneTime : null;
-            const activeAt = new Date((doseTime ? doseTime.getTime() : now.getTime()) + NALTREXONE_LEAD_MS);
-            const naltrexoneActive = !!doseTime && now >= activeAt;
+            verdictText.textContent = canAny ? 'YES' : 'NO';
 
-            // Verdict: YES needs naltrexone active AND room in the budget
-            let verdict, tone, feedback;
-            if (naltrexoneActive) {
-                if (canAny) {
-                    verdict = 'YES'; tone = 'green'; feedback = '';
-                } else {
-                    verdict = 'NO'; tone = 'red';
-                    feedback = pastCutoff
-                        ? "Past 8:30 PM hard cutoff."
-                        : "Budget empty. Another drink disrupts sleep.";
-                }
+            if (canAny) {
+                statusPanel.className = 'p-8 pb-6 text-center border-b-4 border-emerald-500 bg-emerald-950/20 transition-colors duration-300';
+                verdictText.className = 'font-display text-8xl leading-none text-emerald-400 transition-colors duration-300';
             } else {
-                // Would anything still fit once naltrexone kicks in?
-                const baseAtActive = new Date(Math.max(baseTime.getTime(), activeAt.getTime()));
-                const pastCutoffAtActive = activeAt >= cutoffTime;
-                const canAnyAtActive = !pastCutoffAtActive &&
-                    Math.floor((bedtime - baseAtActive) / MS_PER_SMALLEST_DRINK) > 0;
-                if (!canAnyAtActive) {
-                    verdict = 'NO'; tone = 'red';
-                    if (pastCutoff) {
-                        feedback = "Past 8:30 PM hard cutoff.";
-                    } else if (pastCutoffAtActive) {
-                        feedback = doseTime
-                            ? "Naltrexone won't be active until after the 8:30 PM cutoff."
-                            : "Too late — naltrexone can't be active before the 8:30 PM cutoff.";
-                    } else {
-                        feedback = "Budget empty. Another drink disrupts sleep.";
-                    }
-                } else if (doseTime) {
-                    verdict = 'WAIT'; tone = 'amber';
-                    feedback = `Naltrexone active at ${formatClockTime(activeAt)}`;
-                } else {
-                    verdict = 'NO'; tone = 'amber';
-                    feedback = `Take naltrexone ${NALTREXONE_LEAD_MINUTES} min before drinking.`;
-                }
-            }
-
-            verdictText.textContent = verdict;
-            const TONES = {
-                green: ['emerald', 'text-emerald-300'],
-                amber: ['amber', 'text-amber-300'],
-                red:   ['rose', 'text-rose-300'],
-            };
-            const [c, feedbackColor] = TONES[tone];
-            statusPanel.className = `p-8 pb-6 text-center border-b-4 border-${c}-500 bg-${c}-950/20 transition-colors duration-300`;
-            verdictText.className = `font-display text-8xl leading-none text-${c}-400 transition-colors duration-300`;
-            feedbackContainer.innerHTML = feedback
-                ? `<p class="font-semibold text-sm ${feedbackColor}">${feedback}</p>`
-                : '';
-
-            // Naltrexone pill strip
-            if (naltrexoneActive) {
-                naltrexoneBtn.className = NALT_ACTIVE;
-                naltrexoneBtn.disabled = true;
-                naltrexoneText.textContent = '💊 Naltrexone active';
-                naltrexoneTrack.classList.add('hidden');
-            } else if (doseTime) {
-                naltrexoneBtn.className = NALT_PENDING;
-                naltrexoneBtn.disabled = true;
-                naltrexoneText.textContent = `💊 Active in ${formatRelativeTime(activeAt, now) || '0m'}`;
-                naltrexoneTrack.classList.remove('hidden');
-                const pct = Math.min(100, ((now - doseTime) / NALTREXONE_LEAD_MS) * 100);
-                naltrexoneBar.style.width = `${pct}%`;
-            } else {
-                naltrexoneBtn.className = NALT_LOG;
-                naltrexoneBtn.disabled = false;
-                naltrexoneText.textContent = '💊 Log Naltrexone';
-                naltrexoneTrack.classList.add('hidden');
-                naltrexoneBar.style.width = '0%';
+                statusPanel.className = 'p-8 pb-6 text-center border-b-4 border-rose-500 bg-rose-950/20 transition-colors duration-300';
+                verdictText.className = 'font-display text-8xl leading-none text-rose-400 transition-colors duration-300';
             }
 
             // Per-button state
@@ -376,6 +285,16 @@
             applyButton(logBeerBtn, beerSubText, canBeer, beerBudget, 'Beer');
             applyButton(logPintBtn, pintSubText, canPint, pintBudget, 'Pint');
             applyButton(logWineBtn, wineSubText, canWine, wineBudget, 'Wine');
+
+            // Feedback under the verdict
+            if (!canAny) {
+                const reason = pastCutoff
+                    ? "Past 8:30 PM hard cutoff."
+                    : "Budget empty. Another drink disrupts sleep.";
+                feedbackContainer.innerHTML = `<p class="font-semibold text-sm text-rose-300">${reason}</p>`;
+            } else {
+                feedbackContainer.innerHTML = '';
+            }
 
             // Queue clears row
             const isClearanceInPast = systemZeroTime && systemZeroTime <= now;
@@ -403,9 +322,7 @@
             if (undoActive) {
                 undoBtn.classList.remove('hidden');
                 const remainingS = Math.ceil((UNDO_WINDOW_SECONDS * 1000 - (now - lastDrinkTime)) / 1000);
-                const label = lastDrinkType === 'naltrexone' ? 'naltrexone'
-                    : lastDrinkType === 'wine' ? 'wine'
-                    : (lastDrinkType === 'pint' ? 'pint' : 'beer');
+                const label = lastDrinkType === 'wine' ? 'wine' : (lastDrinkType === 'pint' ? 'pint' : 'beer');
                 undoBtn.textContent = `↶ Undo last ${label} (${remainingS}s)`;
             } else {
                 undoBtn.classList.add('hidden');
@@ -443,69 +360,44 @@
                 const bedtime = new Date(now);
                 bedtime.setHours(BEDTIME_HOUR, BEDTIME_MINUTE, 0, 0);
                 const overshoot = systemZeroTime > bedtime;
-
+                
                 let line = `${localISO(now)}|${TYPE_LABEL[type]}`;
                 if (overshoot) line += '|overshoot';
-
-                fireShortcut(line);
+                
+                window.location.href = 
+                    `shortcuts://run-shortcut?name=${encodeURIComponent(SHORTCUT_NAME)}` +
+                    `&input=text&text=${encodeURIComponent(line)}`;
             }
-        }
-
-        function logNaltrexone() {
-            const now = new Date();
-            naltrexoneTime = now;
-            lastDrinkTime = now;
-            lastDrinkType = 'naltrexone';
-
-            localStorage.setItem('sleepTracker_naltrexoneTime', now.toISOString());
-            localStorage.setItem('sleepTracker_lastDrink', now.toISOString());
-            localStorage.setItem('sleepTracker_lastType', 'naltrexone');
-
-            updateUI();
-
-            if (SHORTCUT_NAME) fireShortcut(`${localISO(now)}|${TYPE_LABEL.naltrexone}`);
-        }
-
-        function fireShortcut(line) {
-            window.location.href =
-                `shortcuts://run-shortcut?name=${encodeURIComponent(SHORTCUT_NAME)}` +
-                `&input=text&text=${encodeURIComponent(line)}`;
         }
 
         logBeerBtn.addEventListener('click', () => logDrink('beer'));
         logPintBtn.addEventListener('click', () => logDrink('pint'));
         logWineBtn.addEventListener('click', () => logDrink('wine'));
-        naltrexoneBtn.addEventListener('click', logNaltrexone);
 
         undoBtn.addEventListener('click', () => {
-            if (!lastDrinkTime) return;
+            if (!lastDrinkTime || !systemZeroTime) return;
             const now = new Date();
             if ((now - lastDrinkTime) >= UNDO_WINDOW_SECONDS * 1000) return;
 
-            if (lastDrinkType === 'naltrexone') {
-                naltrexoneTime = null;
-                localStorage.removeItem('sleepTracker_naltrexoneTime');
-            } else if (systemZeroTime) {
-                const ms = MS_PER_TYPE[lastDrinkType];
-                const newZero = new Date(systemZeroTime.getTime() - ms);
-                if (newZero <= now) {
-                    systemZeroTime = null;
-                    localStorage.removeItem('sleepTracker_zeroTime');
-                } else {
-                    systemZeroTime = newZero;
-                    localStorage.setItem('sleepTracker_zeroTime', systemZeroTime.toISOString());
-                }
+            const ms = MS_PER_TYPE[lastDrinkType];
+            const newZero = new Date(systemZeroTime.getTime() - ms);
+            if (newZero <= now) {
+                systemZeroTime = null;
+                localStorage.removeItem('sleepTracker_zeroTime');
+            } else {
+                systemZeroTime = newZero;
+                localStorage.setItem('sleepTracker_zeroTime', systemZeroTime.toISOString());
+            }
 
-                if (lastDrinkType === 'wine') {
-                    wineCount = Math.max(0, wineCount - 1);
-                    localStorage.setItem('sleepTracker_wineCount', wineCount.toString());
-                } else if (lastDrinkType === 'pint') {
-                    pintCount = Math.max(0, pintCount - 1);
-                    localStorage.setItem('sleepTracker_pintCount', pintCount.toString());
-                } else {
-                    beerCount = Math.max(0, beerCount - 1);
-                    localStorage.setItem('sleepTracker_beerCount', beerCount.toString());
-                }
+            if (lastDrinkType === 'wine') {
+                wineCount = Math.max(0, wineCount - 1);
+                localStorage.setItem('sleepTracker_wineCount', wineCount.toString());
+            } else if (lastDrinkType === 'pint') {
+                pintCount = Math.max(0, pintCount - 1);
+                localStorage.setItem('sleepTracker_pintCount', pintCount.toString());
+            } else {
+                beerCount = Math.max(0, beerCount - 1);
+                localStorage.setItem('sleepTracker_beerCount', beerCount.toString());
             }
 
             lastDrinkTime = null;
@@ -517,18 +409,16 @@
         });
 
         resetBtn.addEventListener('click', () => {
-            if (confirm("Clear today's drink queue and naltrexone dose?")) {
+            if (confirm("Clear today's drink queue?")) {
                 systemZeroTime = null;
                 lastDrinkTime = null;
                 lastDrinkType = '';
                 beerCount = 0;
                 pintCount = 0;
                 wineCount = 0;
-                naltrexoneTime = null;
                 localStorage.removeItem('sleepTracker_zeroTime');
                 localStorage.removeItem('sleepTracker_lastDrink');
                 localStorage.removeItem('sleepTracker_lastType');
-                localStorage.removeItem('sleepTracker_naltrexoneTime');
                 localStorage.setItem('sleepTracker_beerCount', '0');
                 localStorage.setItem('sleepTracker_pintCount', '0');
                 localStorage.setItem('sleepTracker_wineCount', '0');
